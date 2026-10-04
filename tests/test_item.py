@@ -44,6 +44,18 @@ class TestItem(unittest.TestCase):
         with self.assertRaises(ValueError):
             item.remover_quantidade(10)
 
+    def test_verificacoes_de_estoque(self):
+        item = Item(id=1, nome="Feijão", quantidade=3, local="Despensa", quantidade_minima=2)
+        
+        self.assertFalse(item.esta_abaixo_do_minimo())
+        self.assertFalse(item.esta_zerado())
+        
+        item.remover_quantidade(1)
+        self.assertTrue(item.esta_abaixo_do_minimo())
+        
+        item.remover_quantidade(2)
+        self.assertTrue(item.esta_zerado())
+
 if __name__ == "__main__":
     unittest.main()
 
