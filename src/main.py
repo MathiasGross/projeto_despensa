@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.auth import router as auth_router
 from src.api.compras import router as compras_router
 from src.api.itens import router as itens_router
+from src.api.receitas import router as receitas_router
 from src.database.connection import get_connection, init_db
 
 ENV = os.getenv("ENVIRONMENT", "development").lower()
@@ -43,6 +44,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(itens_router)
 app.include_router(compras_router)
+app.include_router(receitas_router)
 
 
 @app.get("/", tags=["Status"])

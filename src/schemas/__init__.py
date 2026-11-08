@@ -6,6 +6,7 @@ from src.schemas.item import (
     ListaComprasRespostaSchema,
     MovimentacaoEstoqueSchema,
 )
+from src.schemas.recipe import IngredienteReceita, Receita, SugestaoReceitasResposta
 
 __all__ = [
     "CadastroSchema",
@@ -17,4 +18,7 @@ __all__ = [
     "ItemRespostaSchema",
     "ListaComprasRespostaSchema",
     "AlertasRespostaSchema",
+    "IngredienteReceita",
+    "Receita",
+    "SugestaoReceitasResposta",
 ]
