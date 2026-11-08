@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { authService } from '../services/api';
+import { API_URL, authService } from '../services/api';
 
 interface AuthScreenProps {
   onLoginSuccess: () => void;
@@ -93,8 +93,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       } else {
         const msg =
           error.response?.data?.detail ||
-          'Não foi possível conectar. Verifique seus dados.';
-        Alert.alert('Erro', msg);
+          (error.message?.includes('Network Error')
+            ? `Não foi possível conectar ao servidor em ${API_URL}.\n\nVerifique se o backend está ligado e se o celular e o computador estão na mesma rede Wi-Fi.`
+            : error.message || 'Verifique seus dados e tente novamente.');
+        Alert.alert('Erro de Conexão', msg);
       }
     } finally {
       setLoading(false);
@@ -129,7 +131,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
       Alert.alert('Google Auth', 'Login realizado com o Google com sucesso!');
       onLoginSuccess();
     } catch (error: any) {
-      Alert.alert('Erro no Google', error.response?.data?.detail || 'Falha ao autenticar com o Google.');
+      const msg =
+        error.response?.data?.detail ||
+        (error.message?.includes('Network Error')
+          ? `Não foi possível conectar ao servidor em ${API_URL}.\n\nVerifique se o backend está ligado e se o celular e o computador estão no mesmo Wi-Fi.`
+          : 'Falha ao autenticar com o Google.');
+      Alert.alert('Erro no Google', msg);
     } finally {
       setLoading(false);
     }
@@ -299,6 +306,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
               </TouchableOpacity>
             </>
           )}
+        </View>
+
+        {/* Indicador do Servidor Conectado */}
+        <View style={styles.serverInfoBox}>
+          <Text style={styles.serverInfoText}>
+            📡 Servidor API: <Text style={{ color: '#10b981', fontWeight: 'bold' }}>{API_URL}</Text>
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -478,5 +492,17 @@ const styles = StyleSheet.create({
     color: '#38bdf8',
     fontSize: 13,
     fontWeight: '600',
+  },
+  serverInfoBox: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  serverInfoText: {
+    color: '#94a3b8',
+    fontSize: 11,
   },
 });

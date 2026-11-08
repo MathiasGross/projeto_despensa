@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import {
   AlertasResposta,
   DespensaDetalhes,
@@ -10,9 +12,31 @@ import {
   Usuario,
 } from '../types';
 
-// Altere para o IP local do seu computador na rede Wi-Fi ao testar no celular físico (ex: http://192.168.1.100:8000)
-// No emulador Android, 10.0.2.2 aponta para o localhost do computador host
-const API_URL = 'http://10.0.2.2:8000';
+// Detecta o IP do computador na rede local Wi-Fi automaticamente através do Expo
+const getBaseUrl = (): string => {
+  if (Platform.OS === 'web') {
+    return 'http://localhost:8000';
+  }
+
+  // No Expo Go, hostUri contém o IP da máquina que está rodando o Metro Bundler (ex: "192.168.1.8:8081")
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return `http://${ip}:8000`;
+    }
+  }
+
+  // IP da sua máquina na rede Wi-Fi local
+  return 'http://192.168.1.8:8000';
+};
+
+export const API_URL = getBaseUrl();
+console.log('[API Despensa] Conectando ao backend em:', API_URL);
 
 export const api = axios.create({
   baseURL: API_URL,
