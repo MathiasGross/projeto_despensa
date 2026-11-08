@@ -7,6 +7,7 @@ from src.database.connection import get_connection, init_db
 from src.main import app
 from src.schemas.recipe import Receita
 from src.services.ai_recipe_service import AIRecipeService
+from src.services.email_service import ULTIMOS_CODIGOS_DEV
 
 TEST_DB = "test_despensa_ai.db"
 
@@ -105,7 +106,7 @@ class TestReceitasEndpoint(unittest.TestCase):
 
     def test_endpoint_despensa_vazia(self):
         # Cadastro e login
-        cad_resp = self.client.post(
+        self.client.post(
             "/auth/cadastro",
             json={
                 "nome": "User Sem Estoque",
@@ -113,6 +114,11 @@ class TestReceitasEndpoint(unittest.TestCase):
                 "senha": "senhaValida123!",
                 "nome_despensa": "Despensa Vazia",
             },
+        )
+        cod = ULTIMOS_CODIGOS_DEV["vazio@teste.com"]
+        cad_resp = self.client.post(
+            "/auth/verificar-codigo",
+            json={"email": "vazio@teste.com", "codigo": cod},
         )
         token = cad_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -125,7 +131,7 @@ class TestReceitasEndpoint(unittest.TestCase):
 
     def test_endpoint_com_itens_em_estoque(self):
         # Cadastro e login
-        cad_resp = self.client.post(
+        self.client.post(
             "/auth/cadastro",
             json={
                 "nome": "Chef User",
@@ -133,6 +139,11 @@ class TestReceitasEndpoint(unittest.TestCase):
                 "senha": "senhaValida123!",
                 "nome_despensa": "Minha Cozinha",
             },
+        )
+        cod = ULTIMOS_CODIGOS_DEV["chef@teste.com"]
+        cad_resp = self.client.post(
+            "/auth/verificar-codigo",
+            json={"email": "chef@teste.com", "codigo": cod},
         )
         token = cad_resp.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}

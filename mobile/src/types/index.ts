@@ -3,6 +3,8 @@ export interface Usuario {
   despensa_id: number;
   nome: string;
   email: string;
+  ativo?: boolean;
+  codigo_despensa?: string;
   criado_em?: string;
 }
 
@@ -58,4 +60,31 @@ export interface SugestaoReceitasResposta {
   receitas: Receita[];
   total_ingredientes_utilizados: number;
   mensagem: string;
+}
+
+export interface MembroDespensa {
+  id: number;
+  nome: string;
+  email: string;
+  e_dono: boolean;
+}
+
+export interface DespensaDetalhes {
+  id: number;
+  nome: string;
+  codigo_convite?: string;
+  e_dono: boolean;
+  membros: MembroDespensa[];
+}
+
+export interface SolicitacaoAdesao {
+  id: number;
+  despensa_id: number;
+  usuario_id: number;
+  usuario_nome?: string;
+  usuario_email?: string;
+  despensa_nome?: string;
+  status: 'pendente' | 'aprovado' | 'recusado';
+  criado_em?: string;
+  respondido_em?: string;
 }
