@@ -18,37 +18,118 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
-  const [isCadastro, setIsCadastro] = useState(false);
+  const [modo, setModo] = useState<'login' | 'cadastro' | 'otp'>('login');
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [nomeDespensa, setNomeDespensa] = useState('Nossa Despensa');
+  const [codigoOtp, setCodigoOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email.trim() || !senha.trim()) {
-      Alert.alert('Atenção', 'Preencha o e-mail e a senha.');
+    if (!email.trim()) {
+      Alert.alert('Atenção', 'Informe o seu e-mail.');
       return;
     }
 
-    if (isCadastro && !nome.trim()) {
+    if (modo === 'otp') {
+      if (!codigoOtp.trim() || codigoOtp.trim().length < 4) {
+        Alert.alert('Atenção', 'Digite o código de verificação recebido.');
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await authService.verificarCodigo(email.trim(), codigoOtp.trim());
+        Alert.alert('Sucesso!', 'Conta verificada com sucesso! Bem-vindo(a).');
+        onLoginSuccess();
+      } catch (error: any) {
+        const msg =
+          error.response?.data?.detail ||
+          'Código inválido ou expirado. Tente novamente.';
+        Alert.alert('Erro na Verificação', msg);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!senha.trim()) {
+      Alert.alert('Atenção', 'Digite a sua senha.');
+      return;
+    }
+
+    if (modo === 'cadastro' && !nome.trim()) {
       Alert.alert('Atenção', 'Preencha o seu nome para o cadastro.');
       return;
     }
 
     setLoading(true);
     try {
-      if (isCadastro) {
-        await authService.cadastro(nome.trim(), email.trim(), senha, nomeDespensa.trim());
+      if (modo === 'cadastro') {
+        const res = await authService.cadastro(
+          nome.trim(),
+          email.trim(),
+          senha,
+          nomeDespensa.trim()
+        );
+        Alert.alert(
+          'Código Enviado!',
+          'Enviamos um código de 6 dígitos para o seu e-mail. Digite-o para concluir a ativação.'
+        );
+        setModo('otp');
       } else {
         await authService.login(email.trim(), senha);
+        onLoginSuccess();
       }
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        // Conta pendente de validação
+        Alert.alert(
+          'Validação Pendente',
+          'Sua conta ainda não foi verificada. Enviamos um novo código para seu e-mail.'
+        );
+        setModo('otp');
+      } else {
+        const msg =
+          error.response?.data?.detail ||
+          'Não foi possível conectar. Verifique seus dados.';
+        Alert.alert('Erro', msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReenviarCodigo = async () => {
+    if (!email.trim()) {
+      Alert.alert('Atenção', 'Digite seu e-mail para reenviar o código.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await authService.reenviarCodigo(email.trim());
+      Alert.alert('Código Reenviado', 'Verifique a sua caixa de entrada e spam.');
+    } catch (error: any) {
+      Alert.alert(
+        'Erro',
+        error.response?.data?.detail || 'Erro ao reenviar código.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoginGoogle = async () => {
+    setLoading(true);
+    try {
+      // Token demonstrativo para desenvolvimento e testes
+      const mockToken = `mock-google-token:${email.trim() || 'usuario.google@gmail.com'}:${nome.trim() || 'Usuário Google'}:google-uid-${Date.now()}`;
+      await authService.loginGoogle(mockToken, nomeDespensa.trim());
+      Alert.alert('Google Auth', 'Login realizado com o Google com sucesso!');
       onLoginSuccess();
     } catch (error: any) {
-      const msg =
-        error.response?.data?.detail ||
-        'Não foi possível conectar. Verifique se o backend está rodando.';
-      Alert.alert('Erro', msg);
+      Alert.alert('Erro no Google', error.response?.data?.detail || 'Falha ao autenticar com o Google.');
     } finally {
       setLoading(false);
     }
@@ -65,79 +146,159 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           <Text style={styles.badge}>🏠 Despensa Compartilhada</Text>
           <Text style={styles.title}>Despensa Inteligente</Text>
           <Text style={styles.subtitle}>
-            {isCadastro
-              ? 'Crie a despensa para você e sua parceira(o)'
+            {modo === 'otp'
+              ? 'Validação de Segurança por Código Único'
+              : modo === 'cadastro'
+              ? 'Crie sua conta e despensa para o casal/família'
               : 'Acesse para gerenciar o estoque da casa'}
           </Text>
         </View>
 
         {/* Card do Formulário */}
         <View style={styles.card}>
-          {isCadastro && (
+          {modo === 'otp' ? (
             <>
-              <Text style={styles.label}>Seu Nome:</Text>
+              <View style={styles.otpHeader}>
+                <Text style={styles.otpIcon}>✉️</Text>
+                <Text style={styles.otpTitle}>Verifique seu E-mail</Text>
+                <Text style={styles.otpSub}>
+                  Digitamos o código de 6 dígitos enviado para{' '}
+                  <Text style={{ fontWeight: 'bold', color: '#10b981' }}>{email}</Text>
+                </Text>
+              </View>
+
+              <Text style={styles.label}>Código de Verificação (6 dígitos):</Text>
               <TextInput
-                style={styles.input}
-                placeholder="Ex: Mathias"
-                value={nome}
-                onChangeText={setNome}
-                autoCapitalize="words"
+                style={[styles.input, styles.otpInput]}
+                placeholder="123456"
+                placeholderTextColor="#64748b"
+                value={codigoOtp}
+                onChangeText={setCodigoOtp}
+                keyboardType="numeric"
+                maxLength={6}
+                autoFocus
               />
 
-              <Text style={styles.label}>Nome da Despensa (Casa):</Text>
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>Validar Código e Entrar</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.btnSecundario}
+                onPress={handleReenviarCodigo}
+                disabled={loading}
+              >
+                <Text style={styles.btnSecundarioText}>🔄 Reenviar novo código</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.btnToggle}
+                onPress={() => setModo('login')}
+              >
+                <Text style={styles.btnToggleText}>← Voltar para o Login</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {modo === 'cadastro' && (
+                <>
+                  <Text style={styles.label}>Seu Nome:</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Mathias"
+                    placeholderTextColor="#64748b"
+                    value={nome}
+                    onChangeText={setNome}
+                    autoCapitalize="words"
+                  />
+
+                  <Text style={styles.label}>Nome da Despensa (Casa):</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ex: Casa Mathias & Parceira"
+                    placeholderTextColor="#64748b"
+                    value={nomeDespensa}
+                    onChangeText={setNomeDespensa}
+                  />
+                </>
+              )}
+
+              <Text style={styles.label}>E-mail:</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Ex: Casa Mathias & Parceira"
-                value={nomeDespensa}
-                onChangeText={setNomeDespensa}
+                placeholder="seu@email.com"
+                placeholderTextColor="#64748b"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
+
+              <Text style={styles.label}>Senha:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="#64748b"
+                value={senha}
+                onChangeText={setSenha}
+                secureTextEntry
+              />
+
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnPrimaryText}>
+                    {modo === 'cadastro'
+                      ? 'Cadastrar e Receber Código'
+                      : 'Entrar no Aplicativo'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Botão de Login com o Google */}
+              <View style={styles.divisor}>
+                <View style={styles.linhaDivisora} />
+                <Text style={styles.divisorTexto}>OU ACESSE COM</Text>
+                <View style={styles.linhaDivisora} />
+              </View>
+
+              <TouchableOpacity
+                style={styles.btnGoogle}
+                onPress={handleLoginGoogle}
+                disabled={loading}
+              >
+                <Text style={styles.btnGoogleIcon}>🌐</Text>
+                <Text style={styles.btnGoogleText}>Continuar com o Google</Text>
+              </TouchableOpacity>
+
+              {/* Toggle entre Login e Cadastro */}
+              <TouchableOpacity
+                style={styles.btnToggle}
+                onPress={() =>
+                  setModo(modo === 'cadastro' ? 'login' : 'cadastro')
+                }
+              >
+                <Text style={styles.btnToggleText}>
+                  {modo === 'cadastro'
+                    ? 'Já possui uma conta? Faça Login'
+                    : 'Primeiro acesso? Crie sua Despensa'}
+                </Text>
+              </TouchableOpacity>
             </>
           )}
-
-          <Text style={styles.label}>E-mail:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="seu@email.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <Text style={styles.label}>Senha:</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            value={senha}
-            onChangeText={setSenha}
-            secureTextEntry
-          />
-
-          <TouchableOpacity
-            style={styles.btnPrimary}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.btnPrimaryText}>
-                {isCadastro ? 'Criar Conta e Despensa' : 'Entrar no Aplicativo'}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Toggle entre Login e Cadastro */}
-          <TouchableOpacity
-            style={styles.btnToggle}
-            onPress={() => setIsCadastro(!isCadastro)}
-          >
-            <Text style={styles.btnToggleText}>
-              {isCadastro
-                ? 'Já possui uma conta? Faça Login'
-                : 'Primeiro acesso? Crie sua Despensa'}
-            </Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -156,7 +317,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
   },
   badge: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
@@ -193,6 +354,26 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 6,
   },
+  otpHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  otpIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  otpTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  otpSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 18,
+  },
   label: {
     color: '#cbd5e1',
     fontSize: 12,
@@ -210,12 +391,21 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
   },
+  otpInput: {
+    textAlign: 'center',
+    fontSize: 26,
+    fontWeight: '800',
+    letterSpacing: 10,
+    color: '#10b981',
+    borderColor: '#10b981',
+    backgroundColor: 'rgba(16, 185, 129, 0.05)',
+  },
   btnPrimary: {
     backgroundColor: '#10b981',
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 22,
+    marginTop: 20,
     shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
@@ -226,6 +416,59 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 14,
+  },
+  btnSecundario: {
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+  },
+  btnSecundarioText: {
+    color: '#38bdf8',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  divisor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 18,
+  },
+  linhaDivisora: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#334155',
+  },
+  divisorTexto: {
+    color: '#64748b',
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 10,
+    letterSpacing: 1,
+  },
+  btnGoogle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 14,
+    paddingVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  btnGoogleIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  btnGoogleText: {
+    color: '#0f172a',
+    fontSize: 14,
+    fontWeight: '700',
   },
   btnToggle: {
     marginTop: 18,

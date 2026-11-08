@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from src.api.dependencies import configurar_db_path
 from src.database.connection import get_connection, init_db
 from src.main import app
+from src.services.email_service import ULTIMOS_CODIGOS_DEV
 
 TEST_DB = "test_despensa_api.db"
 
@@ -27,13 +28,39 @@ class TestAPI(unittest.TestCase):
         if os.path.exists(TEST_DB):
             os.remove(TEST_DB)
 
+    def _cadastrar_e_obter_token(
+        self,
+        nome: str = "Mathias",
+        email: str = "mathias@exemplo.com",
+        senha: str = "senhaSegura123!",
+        nome_despensa: str = "Casa",
+    ) -> str:
+        # 1. Cadastro inicial
+        self.client.post(
+            "/auth/cadastro",
+            json={
+                "nome": nome,
+                "email": email,
+                "senha": senha,
+                "nome_despensa": nome_despensa,
+            },
+        )
+        # 2. Obter código gerado
+        codigo = ULTIMOS_CODIGOS_DEV[email.lower()]
+        # 3. Validar código e obter token
+        resp_val = self.client.post(
+            "/auth/verificar-codigo",
+            json={"email": email, "codigo": codigo},
+        )
+        return resp_val.json()["access_token"]
+
     def test_status_root(self):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["status"], "online")
 
     def test_cadastro_e_login_sucesso(self):
-        # 1. Cadastro
+        # 1. Cadastro envia OTP
         dados_cadastro = {
             "nome": "Mathias",
             "email": "mathias@exemplo.com",
@@ -43,11 +70,30 @@ class TestAPI(unittest.TestCase):
         resp = self.client.post("/auth/cadastro", json=dados_cadastro)
         self.assertEqual(resp.status_code, 201)
         data = resp.json()
-        self.assertIn("access_token", data)
-        self.assertEqual(data["usuario"]["nome"], "Mathias")
-        self.assertEqual(data["usuario"]["email"], "mathias@exemplo.com")
+        self.assertTrue(data["requer_verificacao"])
+        self.assertEqual(data["email"], "mathias@exemplo.com")
 
-        # 2. Login
+        # 2. Tentativa de login antes de verificar o código deve falhar (403)
+        resp_login_inativo = self.client.post(
+            "/auth/login",
+            json={"email": "mathias@exemplo.com", "senha": "senhaSegura123!"},
+        )
+        self.assertEqual(resp_login_inativo.status_code, 403)
+
+        # 3. Verificação do código OTP
+        codigo = ULTIMOS_CODIGOS_DEV["mathias@exemplo.com"]
+        resp_val = self.client.post(
+            "/auth/verificar-codigo",
+            json={"email": "mathias@exemplo.com", "codigo": codigo},
+        )
+        self.assertEqual(resp_val.status_code, 200)
+        dados_val = resp_val.json()
+        self.assertIn("access_token", dados_val)
+        self.assertEqual(dados_val["usuario"]["nome"], "Mathias")
+        self.assertTrue(dados_val["usuario"]["ativo"])
+        self.assertIsNotNone(dados_val["usuario"]["codigo_despensa"])
+
+        # 4. Login após validação tem sucesso
         dados_login = {
             "email": "mathias@exemplo.com",
             "senha": "senhaSegura123!",
@@ -57,15 +103,7 @@ class TestAPI(unittest.TestCase):
         self.assertIn("access_token", resp_login.json())
 
     def test_login_senha_incorreta(self):
-        self.client.post(
-            "/auth/cadastro",
-            json={
-                "nome": "User",
-                "email": "user@exemplo.com",
-                "senha": "senhaValida123!",
-                "nome_despensa": "Casa",
-            },
-        )
+        self._cadastrar_e_obter_token(email="user@exemplo.com", senha="senhaValida123!")
         resp = self.client.post(
             "/auth/login",
             json={"email": "user@exemplo.com", "senha": "senhaErrada"},
@@ -80,17 +118,8 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(resp_compras.status_code, 401)
 
     def test_crud_itens_e_movimentacao_estoque(self):
-        # Cadastro e obtenção do token
-        resp_cad = self.client.post(
-            "/auth/cadastro",
-            json={
-                "nome": "Mathias",
-                "email": "m@exemplo.com",
-                "senha": "minhaSenha123!",
-                "nome_despensa": "Casa",
-            },
-        )
-        token = resp_cad.json()["access_token"]
+        # Cadastro e obtenção do token validado via OTP
+        token = self._cadastrar_e_obter_token(email="m@exemplo.com")
         headers = {"Authorization": f"Bearer {token}"}
 
         # 1. Cadastrar item
@@ -149,26 +178,18 @@ class TestAPI(unittest.TestCase):
 
     def test_isolamento_entre_duas_despensas(self):
         # Usuário 1 na Despensa A
-        token1 = self.client.post(
-            "/auth/cadastro",
-            json={
-                "nome": "User 1",
-                "email": "user1@teste.com",
-                "senha": "password123!",
-                "nome_despensa": "Despensa A",
-            },
-        ).json()["access_token"]
+        token1 = self._cadastrar_e_obter_token(
+            nome="User 1",
+            email="user1@teste.com",
+            nome_despensa="Despensa A",
+        )
 
         # Usuário 2 na Despensa B
-        token2 = self.client.post(
-            "/auth/cadastro",
-            json={
-                "nome": "User 2",
-                "email": "user2@teste.com",
-                "senha": "password123!",
-                "nome_despensa": "Despensa B",
-            },
-        ).json()["access_token"]
+        token2 = self._cadastrar_e_obter_token(
+            nome="User 2",
+            email="user2@teste.com",
+            nome_despensa="Despensa B",
+        )
 
         # Usuário 1 cadastra Café
         self.client.post(
