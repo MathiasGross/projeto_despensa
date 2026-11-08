@@ -1,15 +1,29 @@
-class Item():
-    def __init__(self,id : int, nome: str, quantidade:int, local:str, quantidade_minima:int = 1, obs:str = ""):
+class Item:
+    def __init__(
+        self,
+        id: int,
+        nome: str,
+        quantidade: int,
+        local: str,
+        quantidade_minima: int = 1,
+        obs: str = "",
+        despensa_id: int = 1,
+    ):
         self.id = id
         self.nome = nome
         self.quantidade = quantidade
         self.quantidade_minima = quantidade_minima
         self.local = local
-        self.obs = obs    
+        self.obs = obs
+        self.despensa_id = despensa_id
 
     def __repr__(self):
-        
-        return (f"ID: {self.id}\nNome do Produto: {self.nome}\nQuantidade:{self.quantidade}\nLocal Armazenamento:{self.local}")
+        return (
+            f"ID: {self.id} | Despensa: {self.despensa_id}\n"
+            f"Nome do Produto: {self.nome}\n"
+            f"Quantidade: {self.quantidade}\n"
+            f"Local Armazenamento: {self.local}"
+        )
 
     def adicionar_quantidade(self, quantidade: int):
 
