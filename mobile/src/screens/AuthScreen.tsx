@@ -24,6 +24,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
   const [senha, setSenha] = useState('');
   const [nomeDespensa, setNomeDespensa] = useState('Nossa Despensa');
   const [codigoOtp, setCodigoOtp] = useState('');
+  const [codigoDev, setCodigoDev] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
@@ -73,6 +74,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           senha,
           nomeDespensa.trim()
         );
+        if (res?.codigo_dev) {
+          setCodigoDev(res.codigo_dev);
+          setCodigoOtp(res.codigo_dev);
+        }
         Alert.alert(
           'Código Enviado!',
           'Enviamos um código de 6 dígitos para o seu e-mail. Digite-o para concluir a ativação.'
@@ -110,7 +115,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
     }
     setLoading(true);
     try {
-      await authService.reenviarCodigo(email.trim());
+      const res = await authService.reenviarCodigo(email.trim());
+      if (res?.codigo_dev) {
+        setCodigoDev(res.codigo_dev);
+        setCodigoOtp(res.codigo_dev);
+      }
       Alert.alert('Código Reenviado', 'Verifique a sua caixa de entrada e spam.');
     } catch (error: any) {
       Alert.alert(
@@ -173,6 +182,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
                   <Text style={{ fontWeight: 'bold', color: '#10b981' }}>{email}</Text>
                 </Text>
               </View>
+
+              {codigoDev && (
+                <TouchableOpacity
+                  style={styles.cardCodigoDev}
+                  onPress={() => setCodigoOtp(codigoDev)}
+                >
+                  <Text style={styles.cardCodigoDevTitulo}>⚡ Código para Teste Rápido:</Text>
+                  <Text style={styles.cardCodigoDevCode}>{codigoDev}</Text>
+                  <Text style={styles.cardCodigoDevSub}>Toque aqui para preencher automaticamente</Text>
+                </TouchableOpacity>
+              )}
 
               <Text style={styles.label}>Código de Verificação (6 dígitos):</Text>
               <TextInput
@@ -387,6 +407,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     lineHeight: 18,
+  },
+  cardCodigoDev: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardCodigoDevTitulo: {
+    color: '#10b981',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  cardCodigoDevCode: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 6,
+    marginVertical: 4,
+  },
+  cardCodigoDevSub: {
+    color: '#34d399',
+    fontSize: 11,
   },
   label: {
     color: '#cbd5e1',

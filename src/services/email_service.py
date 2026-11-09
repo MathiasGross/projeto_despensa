@@ -2,10 +2,27 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import logging
 import os
+from pathlib import Path
 import secrets
 import smtplib
 
 logger = logging.getLogger("email_service")
+
+
+def _carregar_env_se_necessario() -> None:
+    caminho = Path(".env")
+    if caminho.exists():
+        with open(caminho, encoding="utf-8") as f:
+            for linha in f:
+                linha = linha.strip()
+                if linha and not linha.startswith("#") and "=" in linha:
+                    chave, valor = linha.split("=", 1)
+                    os.environ.setdefault(
+                        chave.strip(), valor.strip().strip('"').strip("'")
+                    )
+
+
+_carregar_env_se_necessario()
 
 # Armazena em memória os últimos códigos gerados (útil para testes automáticos e ambiente local dev)
 ULTIMOS_CODIGOS_DEV: dict[str, str] = {}

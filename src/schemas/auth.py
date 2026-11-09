@@ -14,6 +14,7 @@ class CadastroRespostaSchema(BaseModel):
     mensagem: str
     email: str
     requer_verificacao: bool = True
+    codigo_dev: str | None = None
 
 
 class VerificarCodigoSchema(BaseModel):

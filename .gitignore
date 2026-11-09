@@ -17,3 +17,13 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+
+# Variáveis de ambiente e credenciais locais
+.env
+*.env
+.env.local
+
+# Bancos de dados locais
+*.db
+*.sqlite
+*.sqlite3

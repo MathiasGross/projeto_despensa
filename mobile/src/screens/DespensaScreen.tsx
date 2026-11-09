@@ -18,7 +18,7 @@ const CATEGORIAS = [
   'Todos',
   'Armário',
   'Geladeira',
-  'Freezer/Congelador',
+  'Freezer',
   'Lavanderia',
   'Limpeza',
 ];
@@ -156,7 +156,13 @@ export const DespensaScreen: React.FC = () => {
 
   // Filtragem dos itens por categoria e por busca
   const itensFiltrados = itens.filter((item) => {
-    const matchCategoria = categoriaAtiva === 'Todos' || item.local === categoriaAtiva;
+    const localLimpo = (item.local || '').trim().toLowerCase();
+    const catLimpa = categoriaAtiva.toLowerCase();
+    const matchCategoria =
+      categoriaAtiva === 'Todos' ||
+      localLimpo === catLimpa ||
+      (categoriaAtiva === 'Freezer' &&
+        (localLimpo.includes('freezer') || localLimpo.includes('congelador')));
     const matchBusca =
       busca.trim() === '' ||
       item.nome.toLowerCase().includes(busca.toLowerCase().trim()) ||
@@ -217,31 +223,34 @@ export const DespensaScreen: React.FC = () => {
       </View>
 
       {/* Categorias / Locais */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriasList}
-      >
-        {CATEGORIAS.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.categoriaBtn,
-              categoriaAtiva === cat && styles.categoriaBtnAtiva,
-            ]}
-            onPress={() => setCategoriaAtiva(cat)}
-          >
-            <Text
+      <View style={styles.categoriasContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriasList}
+        >
+          {CATEGORIAS.map((cat) => (
+            <TouchableOpacity
+              key={cat}
               style={[
-                styles.categoriaText,
-                categoriaAtiva === cat && styles.categoriaTextAtiva,
+                styles.categoriaBtn,
+                categoriaAtiva === cat && styles.categoriaBtnAtiva,
               ]}
+              onPress={() => setCategoriaAtiva(cat)}
+              activeOpacity={0.7}
             >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.categoriaText,
+                  categoriaAtiva === cat && styles.categoriaTextAtiva,
+                ]}
+              >
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Lista de Produtos */}
       {loading ? (
@@ -557,22 +566,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
   },
+  categoriasContainer: {
+    height: 44,
+    marginVertical: 4,
+    justifyContent: 'center',
+  },
   categoriasList: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
     gap: 8,
+    alignItems: 'center',
   },
   categoriaBtn: {
     backgroundColor: '#1e293b',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoriaBtnAtiva: {
     backgroundColor: '#10b981',
     borderColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   categoriaText: {
     color: '#94a3b8',
@@ -581,6 +602,7 @@ const styles = StyleSheet.create({
   },
   categoriaTextAtiva: {
     color: '#ffffff',
+    fontWeight: '700',
   },
   listContainer: {
     paddingHorizontal: 16,

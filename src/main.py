@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.auth import router as auth_router
@@ -8,6 +9,22 @@ from src.api.despensas import router as despensas_router
 from src.api.itens import router as itens_router
 from src.api.receitas import router as receitas_router
 from src.database.connection import get_connection, init_db
+
+
+def carregar_env() -> None:
+    caminho = Path(".env")
+    if caminho.exists():
+        with open(caminho, encoding="utf-8") as f:
+            for linha in f:
+                linha = linha.strip()
+                if linha and not linha.startswith("#") and "=" in linha:
+                    chave, valor = linha.split("=", 1)
+                    os.environ.setdefault(
+                        chave.strip(), valor.strip().strip('"').strip("'")
+                    )
+
+
+carregar_env()
 
 ENV = os.getenv("ENVIRONMENT", "development").lower()
 IS_PROD = ENV == "production"

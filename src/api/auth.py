@@ -83,6 +83,7 @@ def cadastro(
             "mensagem": "Cadastro já iniciado. Um novo código de verificação foi enviado para seu e-mail.",
             "email": email_limpo,
             "requer_verificacao": True,
+            "codigo_dev": codigo,
         }
 
     # 2. Cria a despensa para o novo usuário
@@ -114,6 +115,7 @@ def cadastro(
         "mensagem": "Código de verificação de 6 dígitos enviado para o seu e-mail.",
         "email": email_limpo,
         "requer_verificacao": True,
+        "codigo_dev": codigo,
     }
 
 
@@ -175,7 +177,10 @@ def reenviar_codigo(
     user_repo.salvar_codigo_verificacao(email_limpo, codigo)
     enviar_email_codigo(email_limpo, usuario.nome, codigo)
 
-    return {"mensagem": "Novo código de verificação enviado com sucesso para seu e-mail."}
+    return {
+        "mensagem": "Novo código de verificação enviado com sucesso para seu e-mail.",
+        "codigo_dev": codigo,
+    }
 
 
 @router.post("/login", response_model=TokenRespostaSchema)
